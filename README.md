@@ -43,6 +43,7 @@ print(data)
 ```
 
 ## Project structure
+```
 ├── .gitignore
 ├── Dockerfile
 ├── README.md
@@ -65,6 +66,7 @@ print(data)
     ├── test_img.jpeg
     └── test_main.py
 └── train.py
+```
 
 ## Что можно улучшить:
 
