@@ -6,8 +6,10 @@ container_name: vit_contrastive
 
 
 # Train arguments
-epochs: 5
+train_dir: data/train
+valid_dir: data/valid
+epochs: 15
 batch_size: 32
-learning_rate: 0.0005
+learning_rate: 0.001
 # for data
 n_negative: 3

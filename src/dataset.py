@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 import random, torch
 
+torch.manual_seed(777)
 
 # Base transforms (resize, normalize, etc.)
 base_transforms = transforms.Compose([

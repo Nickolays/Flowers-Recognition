@@ -10,6 +10,7 @@
     - Faiss(KNN)
     - Docker
     - FastAPI
+    - pytest
 
 
 ## Example output

@@ -29,19 +29,3 @@ class ViTContrastive(nn.Module):
         features = self.encoder(x)  # shape [B, 768]
         projections = self.projection_head(features)  # shape [B, 128]
         return projections
-
-
-
-# Example usage:
-# if __name__ == '__main__':
-#     model = ViTContrastive(pretrained=True)
-#     dummy_input = torch.randn(8, 3, 224, 224)
-#     out = model(dummy_input)  # [8, 128]
-#     print("Projection shape:", out.shape)
-
-#     # Loss test
-#     anchor = out
-#     positive = out.clone()  # simulate a positive
-#     negatives = torch.randn(8, 3, 128)  # 3 negative samples
-#     loss = contrastive_loss_dot(anchor, positive, negatives)
-#     print("Contrastive loss:", loss.item())
