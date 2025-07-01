@@ -1,45 +1,67 @@
 import torch, yaml, os, pickle
 from torch.utils.data import DataLoader
+import faiss
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+from torchvision import transforms
 
 from src.model import ViTContrastive
 from src.dataset import ContrastiveDataset
 from src.steps import train_one_epoch, validate, inference_embeddings
 
 
-# Load configuration
+# Load config
 with open("config.yaml", "r") as f:
     cfg = yaml.safe_load(f)
 
-# Main Training Runner
+# Device setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-train_dataset = ContrastiveDataset(cfg['train_dir'], n_neg=cfg['negatives'])
-val_dataset = ContrastiveDataset(cfg['train_dir'], n_neg=cfg['negatives'])    # data/flowers/val
+# Load model
+model = ViTContrastive()
+model.load_state_dict(torch.load(cfg['model_path'], map_location=device))
+model.to(device)
+model.eval()
 
-train_loader = DataLoader(train_dataset, batch_size=cfg['batch_size'], shuffle=True, num_workers=4)
-val_loader = DataLoader(val_dataset, batch_size=cfg['batch_size'], shuffle=False, num_workers=4)
+# Load validation dataset
+val_dataset = ContrastiveDataset(cfg['val_data_dir'], n_neg=3)
+val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
-model = ViTContrastive(pretrained=True).to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=cfg['learning_rate'], weight_decay=1e-4)
+# Get embeddings
+embeddings, labels = inference_embeddings(model, val_loader, device)  # shape [N, D]
 
-# best_loss = float('inf')
-os.makedirs("checkpoints", exist_ok=True)
+# Build Faiss index
+embeddings_np = embeddings.numpy().astype(np.float32)
+faiss.normalize_L2(embeddings_np)  # required for cosine similarity
+index = faiss.IndexFlatIP(embeddings_np.shape[1])
+index.add(embeddings_np)
 
-for epoch in range(1, cfg['epochs'] + 1):
-    print(f"\nEpoch {epoch}")
-    train_loss = train_one_epoch(model, train_loader, optimizer, device)
-    val_loss = validate(model, val_loader, device)
-    print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
+# Visualize top-5 results for 5 random query images
+transform = val_dataset.transform
+samples = [val_dataset[i] for i in torch.randint(0, len(val_dataset), (5,))]
 
-    if val_loss < best_loss:
-        best_loss = val_loss
-        torch.save(model.state_dict(), f"checkpoints/best_model.pt")
-        print("Saved best model!")
+for i, sample in enumerate(samples):
+    query_tensor = sample['original'].unsqueeze(0).to(device)
+    query_emb = model(query_tensor)
+    query_emb = torch.nn.functional.normalize(query_emb, dim=1)
+    query_np = query_emb.cpu().numpy().astype(np.float32)
 
+    _, top5_indices = index.search(query_np, 5)   # Return distance and indices
 
-# Optional: inference after training
-embeddings, labels = inference_embeddings(model, val_loader, device)
-print("Embedding shape:", embeddings.shape)    # [4317, 128])
+    # Plot results
+    plt.figure(figsize=(15, 3))
+    plt.subplot(1, 6, 1)
+    plt.imshow(transforms.ToPILImage()(sample['original']))
+    plt.title("Query")
+    plt.axis('off')
 
-with open("data/embeddings.pkl", "wb") as f:
-    pickle.dump((embeddings, labels), f)
+    for j, idx in enumerate(top5_indices[0]):
+        img_path, _ = val_dataset.dataset.imgs[idx]
+        img = Image.open(img_path).convert("RGB")
+        plt.subplot(1, 6, j + 2)
+        plt.imshow(img)
+        plt.title(f"Top {j+1}")
+        plt.axis('off')
+    plt.tight_layout()
+    plt.show()

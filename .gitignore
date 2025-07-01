@@ -7,7 +7,7 @@ __pycache__/
 # C extensions
 *.so
 
-config.yaml
+# config.yaml
 combined_data.yaml
 outputs/
 runs/
@@ -37,7 +37,7 @@ var/
 data/
 *.pt
 *.pth
-!checkpoints/best_model.pt
+#!checkpoints/best_model.pt
 *.ckpt
 *.onnx
 # /models
