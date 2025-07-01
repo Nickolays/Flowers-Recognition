@@ -23,7 +23,7 @@ with open("config.yaml", "r") as f:
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load model
-model = ViTContrastive()
+model = ViTContrastive(embed_dim=768, projection_dim=128, pretrained=False)
 model.load_state_dict(torch.load(cfg['model_path'], map_location=device))
 model.to(device)
 model.eval()
@@ -75,6 +75,6 @@ async def search_similar(file: UploadFile = File(...)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-# Entry point
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+# # Entry point
+# if __name__ == "__main__":
+#     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
 
-
 def contrastive_loss_dot(anchor, positive, negatives, temperature=0.07, eps=1e-8):
     """
     Improved contrastive loss with ViT and full normalization stability.
