@@ -37,6 +37,7 @@ var/
 data/
 *.pt
 *.pth
+!checkpoints/best_model.pt
 *.ckpt
 *.onnx
 # /models

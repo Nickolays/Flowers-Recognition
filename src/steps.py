@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.losses import 
+from src.losses import contrastive_loss_dot
 
 
 def train_one_epoch(model, dataloader, optimizer, device):

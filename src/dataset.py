@@ -7,8 +7,8 @@ import random, torch
 
 # Base transforms (resize, normalize, etc.)
 base_transforms = transforms.Compose([
-    transforms.Resize(224),
-    transforms.RandomResizedCrop(196),
+    transforms.Resize(256),
+    transforms.RandomResizedCrop(224),
     transforms.RandomHorizontalFlip(),
     # transforms.ColorJitter(0.4, 0.4, 0.4, 0.1),
     transforms.RandomGrayscale(p=0.2),
