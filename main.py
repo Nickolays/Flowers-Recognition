@@ -1,15 +1,19 @@
-import torch, yaml, os, pickle
-from torch.utils.data import DataLoader
+import torch
 import faiss
+import yaml
 import numpy as np
-import matplotlib.pyplot as plt
 from PIL import Image
-from torchvision import transforms
+from io import BytesIO
+from fastapi import FastAPI, UploadFile, File
+from fastapi.responses import JSONResponse
+# from torchvision import transforms
+import uvicorn
+import pickle
 
 from src.model import ViTContrastive
-from src.dataset import ContrastiveDataset
-from src.steps import train_one_epoch, validate, inference_embeddings
+from src.dataset import val_transforms
 
+app = FastAPI()
 
 # Load config
 with open("config.yaml", "r") as f:
@@ -24,44 +28,53 @@ model.load_state_dict(torch.load(cfg['model_path'], map_location=device))
 model.to(device)
 model.eval()
 
-# Load validation dataset
-val_dataset = ContrastiveDataset(cfg['val_data_dir'], n_neg=3)
-val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
+# Load Embeddings
+with open("data/embeddings.pkl", "rb") as f:
+    embeddings_np, labels = pickle.load(f)
+# Load image paths
+with open("data/images_paths.pkl", "rb") as f:
+    image_paths = pickle.load(f)
 
-# Get embeddings
-embeddings, labels = inference_embeddings(model, val_loader, device)  # shape [N, D]
+# Builds a cosine similarity index using
+faiss.normalize_L2(embeddings_np)
 
-# Build Faiss index
-embeddings_np = embeddings.numpy().astype(np.float32)
-faiss.normalize_L2(embeddings_np)  # required for cosine similarity
 index = faiss.IndexFlatIP(embeddings_np.shape[1])
 index.add(embeddings_np)
 
-# Visualize top-5 results for 5 random query images
-transform = val_dataset.transform
-samples = [val_dataset[i] for i in torch.randint(0, len(val_dataset), (5,))]
+# Transformation for input image
+transform = val_transforms
 
-for i, sample in enumerate(samples):
-    query_tensor = sample['original'].unsqueeze(0).to(device)
-    query_emb = model(query_tensor)
-    query_emb = torch.nn.functional.normalize(query_emb, dim=1)
-    query_np = query_emb.cpu().numpy().astype(np.float32)
+@app.post("/search")
+async def search_similar(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        image = Image.open(BytesIO(contents)).convert("RGB")
+        image_tensor = transform(image).unsqueeze(0).to(device)
 
-    _, top5_indices = index.search(query_np, 5)   # Return distance and indices
+        # Get embedding
+        with torch.no_grad():
+            embedding = model(image_tensor)
+            embedding = torch.nn.functional.normalize(embedding, dim=1)
+            query_np = embedding.cpu().numpy().astype(np.float32)
 
-    # Plot results
-    plt.figure(figsize=(15, 3))
-    plt.subplot(1, 6, 1)
-    plt.imshow(transforms.ToPILImage()(sample['original']))
-    plt.title("Query")
-    plt.axis('off')
+        # Search
+        similarity_scores, indices = index.search(query_np, 5)
+        results = [
+            {
+                "image_path": image_paths[int(i)],
+                "similarity_score": float(round(score, 5))
+            }
+            for i, score in zip(indices[0], similarity_scores[0])
+        ]
 
-    for j, idx in enumerate(top5_indices[0]):
-        img_path, _ = val_dataset.dataset.imgs[idx]
-        img = Image.open(img_path).convert("RGB")
-        plt.subplot(1, 6, j + 2)
-        plt.imshow(img)
-        plt.title(f"Top {j+1}")
-        plt.axis('off')
-    plt.tight_layout()
-    plt.show()
+        # Sort descending by similarity_score (though Faiss returns it that way)
+        results = sorted(results, key=lambda x: x['similarity_score'], reverse=True)
+
+        return JSONResponse(content={"results": results})
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# Entry point
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

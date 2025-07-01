@@ -16,6 +16,11 @@ base_transforms = transforms.Compose([
     transforms.Normalize([0.485,0.456,0.406],[0.229,0.224,0.225])
 ])
 
+val_transforms = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+])
+
 class ContrastiveDataset(Dataset):
     def __init__(self, root_dir, transform=None, n_neg=1):
         """
@@ -24,7 +29,7 @@ class ContrastiveDataset(Dataset):
         n_neg: number of negative samples per anchor
         """
         self.dataset = ImageFolder(root=root_dir)
-        self.transform = transform or base_transforms
+        self.transform = transform or val_transforms
         self.n_neg = n_neg
 
         # Build a map: class_idx -> list of indices

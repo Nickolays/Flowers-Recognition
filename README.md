@@ -2,7 +2,7 @@
 
 
 ## System Design
-<img width=400 src="app_logic.png" alt="">
+<img width=600 height=500 src="app_logic.png" alt="">
 
 ### What inside
 
@@ -13,7 +13,7 @@
 
 
 ## Example output
-<img width=400 src="example.png" alt="">
+<img width=600 src="example.png" alt="">
 
 supervised contrastive loss
 
