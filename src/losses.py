@@ -35,3 +35,29 @@ def contrastive_loss_dot(anchor, positive, negatives, temperature=0.07, eps=1e-8
     # Compute cross-entropy
     loss = F.cross_entropy(logits, labels)
     return loss
+
+
+def contrastive_loss_nt_xent(anchor, positive, negatives=None, temperature=0.07):
+    """
+    NT-Xent loss (InfoNCE) for contrastive learning.
+    anchor:   [B, D]
+    positive: [B, D]
+    negatives: [B, N, D] or None (negatives included in batch)
+    """
+    anchor = F.normalize(anchor, dim=1)
+    positive = F.normalize(positive, dim=1)
+
+    # Compute logits
+    pos_logits = torch.sum(anchor * positive, dim=1, keepdim=True)  # [B,1]
+
+    if negatives is not None:
+        neg = F.normalize(negatives, dim=2)  # [B,N,D]
+        neg_logits = torch.bmm(anchor.unsqueeze(1), neg.permute(0, 2, 1)).squeeze(1)
+        logits = torch.cat([pos_logits, neg_logits], dim=1)
+    else:
+        logits = pos_logits  # Self-supervised without negatives
+
+    logits = logits / temperature
+    labels = torch.zeros(logits.size(0), dtype=torch.long, device=anchor.device)
+
+    return F.cross_entropy(logits, labels)

@@ -1,6 +1,46 @@
 import numpy as np
+import torch
+# from torchmetrics.functional.retrieval import (
+#     retrieval_precision,
+#     retrieval_recall,
+#     retrieval_map,
+#     retrieval_ndcg
+# )
 
+# def compute_retrieval_metrics(embeddings: torch.Tensor, labels: torch.Tensor, k: int = 5):
+#     """
+#     embeddings: [N, D] – нормализованные векторы
+#     labels:     [N] – целочисленные метки классов
+#     """
+#     N = embeddings.size(0)
 
+#     # Считаем матрицу попарных сходств
+#     sim = embeddings @ embeddings.T  # [N, N]
+#     sim.fill_diagonal_(-1)  # исключаем идентичные (само совпадение)
+
+#     # Получаем топ-k индексы и оценки
+#     topk_scores, topk_indices = torch.topk(sim, k, dim=1)  # [N, k]
+
+#     # Подготовим входы для torchmetrics: flatten по всем query и кандидатам
+#     preds = topk_scores.flatten()  # [N*k]
+#     # целевое совпадение: True/False
+#     true = (labels.unsqueeze(1) == labels[topk_indices]).flatten()
+#     # индексы запросов
+#     query_idx = torch.arange(N, device=embeddings.device).unsqueeze(1).repeat(1, k).flatten()
+
+#     # Используем pytorch-metrics
+#     prec = retrieval_precision(preds, true, top_k=k)
+#     rec = retrieval_recall(preds, true, top_k=k)
+#     mAP = retrieval_map(preds, true.int(), indexes=query_idx, top_k=k)
+#     nDCG = retrieval_ndcg(preds, true.int(), indexes=query_idx, top_k=k)
+
+#     return {
+#         'precision@k': prec.item(),
+#         'recall@k': rec.item(),
+#         'mAP@k': mAP.item(),
+#         'nDCG@k': nDCG.item()
+#     }
+    
 def precision_at_k(y_true, y_pred, k):
     """
     y_true: List[int] — ground-truth labels (можно один элемент)

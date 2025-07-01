@@ -2,7 +2,8 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.losses import contrastive_loss_dot
+from src.losses import contrastive_loss_dot, contrastive_loss_nt_xent
+# from src.metrics import compute_retrieval_metrics
 
 
 def train_one_epoch(model, dataloader, optimizer, device):
@@ -22,7 +23,8 @@ def train_one_epoch(model, dataloader, optimizer, device):
         pos_emb = model(pos)                  # [B, D]
         negs_emb = model(negs).view(B, N, -1) # [B, N, D]
 
-        loss = contrastive_loss_dot(anchor_emb, pos_emb, negs_emb)
+        # loss = contrastive_loss_dot(anchor_emb, pos_emb, negs_emb)
+        loss = contrastive_loss_nt_xent(anchor_emb, pos_emb, negs_emb)
 
         optimizer.zero_grad()
         loss.backward()
@@ -30,7 +32,6 @@ def train_one_epoch(model, dataloader, optimizer, device):
 
         total_loss += loss.item()
     return total_loss / len(dataloader)
-
 
 def validate(model, dataloader, device):
     model.eval()
@@ -50,6 +51,41 @@ def validate(model, dataloader, device):
             loss = contrastive_loss_dot(anchor_emb, pos_emb, negs_emb)
             total_loss += loss.item()
     return total_loss / len(dataloader)
+
+# def validate(model, dataloader, device, k=5):
+#     model.eval()
+#     total_loss = 0
+#     all_embeddings = []
+#     all_labels = []
+
+#     with torch.no_grad():
+#         for batch in tqdm(dataloader, desc="Validate"):
+#             orig = batch['anchor'].to(device)
+#             pos = batch['positive'].to(device)
+#             negs = batch['negatives'].to(device)
+
+#             B, N, C, H, W = negs.shape
+#             negs = negs.view(B * N, C, H, W)
+
+#             anchor = model(orig)                   # [B, D]
+#             positive = model(pos)                 # [B, D]
+#             negatives = model(negs).view(B, N, -1)  # [B, N, D]
+
+#             loss = contrastive_loss_dot(anchor, positive, negatives)
+#             total_loss += loss.item()
+
+#             emb = model(orig)  # for evaluation metrics
+#             emb = torch.nn.functional.normalize(emb, dim=1)
+#             all_embeddings.append(emb.cpu())
+#             all_labels.append(batch['class_idx'])
+
+    # all_embeddings = torch.cat(all_embeddings)
+    # all_labels = torch.cat(all_labels)
+    # metrics = compute_retrieval_metrics(all_embeddings, all_labels, k=k)
+    # print(metrics)
+#     metrics['val_loss'] = total_loss / len(dataloader)
+
+#     return metrics
 
 
 def inference_embeddings(model, dataloader, device):
