@@ -1,6 +1,6 @@
 
 data_path: data/flowers
-model_path: checkpoints/best_model.pt
+model_path: models/best_model.pt
 model_name: vit_contrastive
 container_name: vit_contrastive
 

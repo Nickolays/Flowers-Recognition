@@ -19,7 +19,7 @@ supervised contrastive loss
 
 ## Code Examples
 
-*Weights have to be here: checkpoints/best_model.pt*
+*Weights have to be here: models/best_model.pt*
 
 
 
