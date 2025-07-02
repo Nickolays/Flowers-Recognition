@@ -2,7 +2,7 @@
 data_path: data/flowers
 model_path: models/best_model.pt
 model_name: vit_contrastive
-container_name: vit_contrastive
+container_name: flower_recognition
 
 
 # Train arguments
@@ -10,6 +10,6 @@ train_dir: data/train
 valid_dir: data/valid
 epochs: 15
 batch_size: 32
-learning_rate: 0.001
+learning_rate: 0.0001
 # for data
 n_negative: 3

@@ -90,3 +90,6 @@ def ndcg_at_k(y_true, y_scores, k):
     idcg = sum(g / np.log2(i + 2) for i, g in enumerate(ideal_gains))
     
     return dcg / idcg if idcg > 0 else 0.0
+
+
+from torchmetrics import RetrievalMAP, RetrievalPrecision

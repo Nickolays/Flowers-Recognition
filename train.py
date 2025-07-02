@@ -1,6 +1,7 @@
 import torch, yaml, os, pickle
 from torch.utils.data import DataLoader
 import numpy as np
+from torchmetrics import RetrievalMAP, RetrievalPrecision
 
 from src.model import ViTContrastive
 from src.dataset import ContrastiveDataset
@@ -26,9 +27,12 @@ model = ViTContrastive(pretrained=True).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=cfg['learning_rate'], weight_decay=1e-4)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
+# Инициализация метрик
+map_metric = RetrievalMAP()
+precision_k_metric = RetrievalPrecision(top_k=5)  # precision@5
+
 best_loss = float('inf')
 os.makedirs("checkpoints", exist_ok=True)
-
 
 for epoch in range(1, cfg['epochs'] + 1):
     print(f"\nEpoch {epoch}")
@@ -47,32 +51,39 @@ for epoch in range(1, cfg['epochs'] + 1):
     val_labels_np = val_labels.numpy()
 
     similarity_matrix = val_embeddings_np @ val_embeddings_np.T
-    np.fill_diagonal(similarity_matrix, -1)
+    np.fill_diagonal(similarity_matrix, -1)   # исключаем совпадения с самим собой
 
-    top_k = 5
-    recalls = []
-    precisions = []
-    maps = []
-    ndcgs = []
+    preds_list = []
+    target_list = []
+    indexes_list = []
 
-    for i in range(len(val_labels_np)):
-        true_label = val_labels_np[i]
+    # Формируем данные для метрик
+    for i in range(len(val_labels)):
+        true_label = val_labels[i].item()
         scores = similarity_matrix[i]
-        top_indices = np.argsort(-scores)[:top_k]
-        pred_labels = val_labels_np[top_indices]
+        # Считаем релевантность: 1, если метка совпадает, иначе 0
+        relevance = (val_labels.numpy() == true_label).astype(int)
 
-        y_true = [true_label]
-        y_pred = pred_labels.tolist()
-        y_scores = scores[top_indices].tolist()
+        preds_list.extend(scores.tolist())
+        target_list.extend(relevance.tolist())
+        indexes_list.extend([i] * len(scores))  # все элементы принадлежат запросу i
 
-        recalls.append(recall_at_k(y_true, y_pred, top_k))
-        precisions.append(precision_at_k(y_true, y_pred, top_k))
-        maps.append(mean_average_precision(y_true, y_scores, top_k))
-        ndcgs.append(ndcg_at_k(y_true, y_scores, top_k))
+    # Преобразуем в тензоры
+    preds_tensor = torch.tensor(preds_list, dtype=torch.float32)
+    target_tensor = torch.tensor(target_list, dtype=torch.bool)
+    indexes_tensor = torch.tensor(indexes_list, dtype=torch.long)
 
+    # Вычисляем метрики
+    map_score = map_metric(preds_tensor, target_tensor, indexes=indexes_tensor)
+    precision_k_score = precision_k_metric(preds_tensor, target_tensor, indexes=indexes_tensor)
+
+    print(f"Validation mAP: {map_score.item():.4f}")
+    print(f"Validation Precision@5: {precision_k_score.item():.4f}")
+
+    # Сброс метрик для следующей эпохи
+    map_metric.reset()
+    precision_k_metric.reset()
     scheduler.step()
-
-    print(f"Recall@{top_k}: {np.mean(recalls):.4f} | Precision@{top_k}: {np.mean(precisions):.4f} | mAP: {np.mean(maps):.4f} | nDCG: {np.mean(ndcgs):.4f}")
 
 # Optional: inference after training
 # embeddings, labels = inference_embeddings(model, val_loader, device)
