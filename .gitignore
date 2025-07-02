@@ -34,7 +34,11 @@ var/
 .installed.cfg
 *.egg
 
-data/
+data/train
+data/valid
+data/flowers
+!data/embeddings.pkl
+!data/images_paths.pkl
 *.pt
 *.pth
 #!models/best_model.pt
